@@ -3,1260 +3,639 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hierarchy of Fall Protection Simulator</title>
+<title>Portable Grinding Safety Awareness</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  :root {
+    --yellow: #f0c040; --orange: #e87820; --red: #d02020;
+    --green: #28a028; --panel: #e8e0d0; --dark: #1a1a2e; --border: #404050;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; image-rendering:pixelated; }
   body {
-    background: #0a0a1a;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 100vh;
-    font-family: 'VT323', monospace;
-    color: #fff;
-    overflow-x: hidden;
+    background:#404050; display:flex; justify-content:center; align-items:center;
+    min-height:100vh; font-family:'Press Start 2P',monospace; overflow:hidden;
   }
-
-  #game-wrapper {
-    width: 100%;
-    max-width: 960px;
-    padding: 10px;
+  #gameCanvas {
+    position:relative; width:800px; height:560px; background:#c8d8e8;
+    border:6px solid var(--border);
+    box-shadow:8px 8px 0 #000,16px 16px 0 #2a2a2a;
+    overflow:hidden;
   }
-
-  #title-bar {
-    text-align: center;
-    padding: 10px 0 6px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: clamp(9px, 2vw, 13px);
-    color: #FFD700;
-    text-shadow: 2px 2px #b8860b, 0 0 20px #ffd70066;
-    letter-spacing: 1px;
+  #gameCanvas::after {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:9999;
+    background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 4px);
   }
+  .screen { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; overflow:hidden; }
+  .screen.active { display:flex; }
 
-  #subtitle {
-    text-align: center;
-    font-size: 18px;
-    color: #aaa;
-    margin-bottom: 8px;
+  /* Buttons */
+  .pxbtn {
+    font-family:'Press Start 2P',monospace; font-size:10px; padding:10px 18px;
+    background:var(--yellow); color:#000; border:none; outline:none; cursor:pointer;
+    border-top:3px solid #ffe880; border-left:3px solid #ffe880;
+    border-bottom:4px solid #a08010; border-right:4px solid #a08010;
+    transition:transform 0.05s; letter-spacing:1px;
   }
+  .pxbtn:active { transform:translate(2px,2px); }
+  .pxbtn.red { background:var(--red); color:#fff; border-top-color:#ff5050; border-left-color:#ff5050; border-bottom-color:#800; border-right-color:#800; }
+  .pxbtn.green { background:var(--green); color:#fff; border-top-color:#60e060; border-left-color:#60e060; border-bottom-color:#106010; border-right-color:#106010; }
+  .pxbtn.gray { background:#788898; color:#fff; border-top-color:#aabbcc; border-left-color:#aabbcc; border-bottom-color:#445566; border-right-color:#445566; }
 
-  #main-layout {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
+  /* Title */
+  #titleScreen { background:linear-gradient(180deg,#1a1a2e,#16213e 50%,#0f3460); justify-content:center; gap:6px; }
+  .title-stripe { width:100%; padding:10px 0; background:repeating-linear-gradient(90deg,#f0c040 0,#f0c040 20px,#e87820 20px,#e87820 40px); text-align:center; }
+  .title-stripe span { font-size:9px; color:#000; letter-spacing:2px; }
+  .main-title { color:var(--yellow); font-size:15px; text-align:center; line-height:2; padding:6px 20px 0; text-shadow:3px 3px 0 #a08010; }
+  .sub-title { color:#a0c0ff; font-size:7px; text-align:center; letter-spacing:3px; }
+  .title-btns { display:flex; gap:20px; margin-top:8px; }
+  .blink { animation:blink 1s step-end infinite; }
+  @keyframes blink { 50%{opacity:0;} }
 
-  #left-panel {
-    width: 170px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  /* How To Play */
+  #howScreen { background:#1a1a2e; justify-content:flex-start; padding:20px; gap:14px; }
+  .how-title { color:var(--yellow); font-size:12px; text-align:center; }
+  .how-body { color:#c8d8e8; font-size:8px; line-height:2.2; text-align:center; max-width:600px; }
+  .how-rule { color:var(--orange); font-size:7px; text-align:center; background:rgba(240,192,64,0.1); border:2px solid var(--yellow); padding:10px; max-width:600px; line-height:2; }
 
-  #canvas-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  /* Disc selection */
+  #discScreen { background:var(--panel); align-items:center; gap:0; }
+  .level-header { width:100%; background:var(--dark); color:var(--yellow); font-size:9px; padding:7px 14px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid var(--yellow); }
+  .grinder-info-panel { background:#d8d0c0; border:3px solid #888; border-top-color:#ddd; border-left-color:#ddd; padding:8px 18px; margin:8px 0 4px; text-align:center; width:90%; }
+  .grinder-info-panel h3 { font-size:8px; color:#444; margin-bottom:6px; }
+  .rpm-big { font-size:18px; color:var(--red); text-shadow:2px 2px 0 #800; letter-spacing:2px; }
+  .rpm-label { font-size:7px; color:#666; margin-top:2px; }
+  .disc-question { font-size:8px; color:#333; text-align:center; margin:6px 0 8px; line-height:1.8; }
+  .disc-cards-row { display:flex; gap:14px; justify-content:center; }
+  .disc-card { width:180px; background:#e8e0d0; border-top:3px solid #fff8e8; border-left:3px solid #fff8e8; border-bottom:4px solid #888; border-right:4px solid #888; padding:10px 8px 12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; transition:transform 0.08s; }
+  .disc-card:hover { transform:translateY(-3px); background:#fff8e8; }
+  .disc-card:active { transform:translateY(1px); }
+  .disc-card .max-rpm { font-size:8px; color:#555; margin-top:2px; }
+  .disc-card .rpm-val { font-size:11px; color:var(--orange); }
 
-  #right-panel {
-    width: 165px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  /* Grind screen — canvas fills it, cursor hidden */
+  #grindScreen { background:#708090; cursor:none !important; }
+  #grindCanvas { display:block; cursor:none !important; }
 
-  #hud {
-    display: flex;
-    justify-content: space-between;
-    background: #111;
-    border: 2px solid #FFD700;
-    padding: 4px 10px;
-    font-size: 18px;
-    color: #FFD700;
-    image-rendering: pixelated;
-  }
-
-  canvas {
-    display: block;
-    border: 3px solid #FFD700;
-    background: #1a1a2e;
-    image-rendering: pixelated;
-    width: 100%;
-    max-width: 620px;
-  }
-
-  .panel-box {
-    background: #111;
-    border: 2px solid #444;
-    padding: 8px;
-    font-size: 15px;
-  }
-
-  .panel-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 7px;
-    color: #FFD700;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-  }
-
-  .menu-btn {
-    display: block;
-    width: 100%;
-    padding: 6px 4px;
-    margin-bottom: 4px;
-    font-family: 'VT323', monospace;
-    font-size: 14px;
-    cursor: pointer;
-    border: 2px solid #555;
-    background: #1a1a1a;
-    color: #ccc;
-    text-align: left;
-    transition: all 0.1s;
-    image-rendering: pixelated;
-    position: relative;
-  }
-
-  .menu-btn:hover {
-    background: #2a2a2a;
-    border-color: #FFD700;
-    color: #FFD700;
-    transform: translateX(2px);
-  }
-
-  .menu-btn.selected {
-    background: #2a2000;
-    border-color: #FFD700;
-    color: #FFD700;
-  }
-
-  .menu-btn.active-run {
-    background: #1a2a00;
-    border-color: #0f0;
-    color: #0f0;
-    animation: pulse-btn 0.5s infinite alternate;
-  }
-
-  @keyframes pulse-btn {
-    from { box-shadow: 0 0 4px #0f04; }
-    to { box-shadow: 0 0 10px #0f0a; }
-  }
-
-  .btn-score {
-    float: right;
-    font-size: 12px;
-    color: #888;
-  }
-
-  .btn-icon { margin-right: 4px; }
-
-  #run-btn, #restart-btn {
-    width: 100%;
-    padding: 8px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    cursor: pointer;
-    border: 3px solid #0f0;
-    background: #001a00;
-    color: #0f0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 2px;
-  }
-
-  #run-btn:hover { background: #003300; box-shadow: 0 0 12px #0f06; }
-  #restart-btn { border-color: #f80; color: #f80; background: #1a0800; }
-  #restart-btn:hover { background: #2a1000; }
-
-  /* PYRAMID */
-  #pyramid-canvas {
-    width: 100%;
-    height: 180px;
-    display: block;
-  }
-
-  /* Info box */
-  #info-box {
-    min-height: 90px;
-    font-size: 15px;
-    line-height: 1.4;
-    color: #ccc;
-  }
-
-  #info-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 7px;
-    color: #0ff;
-    margin-bottom: 6px;
-  }
-
-  #info-text { font-size: 14px; color: #aaa; }
-
-  /* Result popup */
-  #result-popup {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #0a0a1a;
-    border: 4px solid #FFD700;
-    padding: 24px 32px;
-    text-align: center;
-    z-index: 100;
-    max-width: 420px;
-    width: 90%;
-    box-shadow: 0 0 40px #FFD70055;
-  }
-
-  #result-popup h2 {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    margin-bottom: 12px;
-  }
-
-  #result-msg { font-size: 18px; margin-bottom: 10px; line-height: 1.5; }
-  #result-score { font-size: 28px; color: #FFD700; margin-bottom: 10px; }
-  #result-explain { font-size: 15px; color: #aaa; margin-bottom: 16px; line-height: 1.5; }
-
-  #result-close {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    padding: 8px 16px;
-    cursor: pointer;
-    border: 3px solid #FFD700;
-    background: #1a1400;
-    color: #FFD700;
-  }
-
-  #result-close:hover { background: #2a2000; }
-
-  #overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: #0008;
-    z-index: 99;
-  }
-
-  /* Progress tracker */
-  .progress-dot {
-    display: inline-block;
-    width: 12px; height: 12px;
-    border: 2px solid #555;
-    margin: 2px;
-  }
-
-  .progress-dot.done { background: #FFD700; border-color: #FFD700; }
-  .progress-dot.active { background: #0f0; border-color: #0f0; animation: pulse-dot 0.5s infinite alternate; }
-
-  @keyframes pulse-dot { from { opacity:0.5; } to { opacity:1; } }
-
-  #total-score-val {
-    font-size: 28px;
-    color: #FFD700;
-    text-align: center;
-  }
-
-  @media (max-width: 700px) {
-    #main-layout { flex-direction: column; }
-    #left-panel, #right-panel { width: 100%; }
-    canvas { max-width: 100%; }
-  }
+  /* Result screens */
+  #failScreen { background:#1a0000; flex-direction:column; align-items:center; }
+  #successScreen { background:#001a00; flex-direction:column; align-items:center; }
+  .result-header { width:100%; padding:14px; font-size:14px; text-align:center; letter-spacing:2px; }
+  #failScreen .result-header { background:var(--red); color:#fff; text-shadow:2px 2px 0 #800; }
+  #successScreen .result-header { background:var(--green); color:#fff; text-shadow:2px 2px 0 #106010; }
+  .result-body { flex:1; width:100%; padding:10px 40px; display:flex; flex-direction:column; align-items:center; gap:8px; overflow-y:auto; }
+  .data-row { display:flex; justify-content:space-between; width:100%; max-width:500px; font-size:7px; border-bottom:1px solid rgba(255,255,255,0.2); padding:4px 0; }
+  .data-row-label { color:#aaa; } .data-row-value { color:#fff; }
+  .cause-box { background:rgba(0,0,0,0.35); border:2px solid; padding:10px; max-width:560px; width:100%; font-size:7px; line-height:2.2; text-align:center; }
+  #failScreen .cause-box { border-color:#ff6060; color:#ffbbbb; }
+  #successScreen .cause-box { border-color:#60e060; color:#b0ffb0; }
+  .safety-rule-box { background:rgba(255,255,0,0.15); border:3px solid var(--yellow); padding:10px; max-width:560px; width:100%; font-size:8px; text-align:center; line-height:2; color:var(--yellow); }
+  .result-btns { display:flex; gap:14px; margin-top:6px; }
+  .firework-canvas { position:absolute; inset:0; pointer-events:none; z-index:5; }
 </style>
 </head>
 <body>
-<div id="game-wrapper">
-  <div id="title-bar">⚠ HIERARCHY OF FALL PROTECTION SIMULATOR ⚠</div>
-  <div id="subtitle">Select a protection method and RUN the scenario</div>
+<div id="gameCanvas">
 
-  <div id="main-layout">
-    <!-- LEFT PANEL: Menu + Controls -->
-    <div id="left-panel">
-      <div class="panel-box">
-        <div class="panel-title">Protection Method</div>
-        <button class="menu-btn" data-scenario="none" onclick="selectScenario('none')">
-          <span class="btn-icon">💀</span>None<span class="btn-score">0pts</span>
-        </button>
-        <button class="menu-btn" data-scenario="elimination" onclick="selectScenario('elimination')">
-          <span class="btn-icon">✅</span>Elimination<span class="btn-score">100pts</span>
-        </button>
-        <button class="menu-btn" data-scenario="guardrail" onclick="selectScenario('guardrail')">
-          <span class="btn-icon">🚧</span>Guardrail<span class="btn-score">85pts</span>
-        </button>
-        <button class="menu-btn" data-scenario="restraint" onclick="selectScenario('restraint')">
-          <span class="btn-icon">🔗</span>Restraint<span class="btn-score">80pts</span>
-        </button>
-        <button class="menu-btn" data-scenario="arrest" onclick="selectScenario('arrest')">
-          <span class="btn-icon">🪝</span>Fall Arrest<span class="btn-score">60pts</span>
-        </button>
-        <button class="menu-btn" data-scenario="warning" onclick="selectScenario('warning')">
-          <span class="btn-icon">⚠️</span>Warning Line<span class="btn-score">35pts</span>
-        </button>
-        <button class="menu-btn" data-scenario="admin" onclick="selectScenario('admin')">
-          <span class="btn-icon">📋</span>Admin Ctrl<span class="btn-score">20pts</span>
-        </button>
-      </div>
-      <button id="run-btn" onclick="runScenario()">▶ RUN</button>
-      <button id="restart-btn" onclick="restartGame()">↺ RESTART</button>
-      <div class="panel-box">
-        <div class="panel-title">Progress</div>
-        <div id="progress-dots"></div>
-        <br>
-        <div class="panel-title">Total Score</div>
-        <div id="total-score-val">0</div>
-      </div>
+  <!-- TITLE -->
+  <div id="titleScreen" class="screen active">
+    <div class="title-stripe"><span>⚠ SAFETY TRAINING MODULE ⚠</span></div>
+    <div class="main-title">PORTABLE<br>GRINDING<br>SAFETY<br>AWARENESS</div>
+    <div class="sub-title">INTERACTIVE TRAINING SIMULATION v1.0</div>
+    <canvas id="titleGrinder" width="220" height="130" style="display:block;margin:6px 0 8px;"></canvas>
+    <div class="title-btns">
+      <button class="pxbtn green" onclick="startGame()">▶ START GAME</button>
+      <button class="pxbtn gray" onclick="showHow()">? HOW TO PLAY</button>
     </div>
+    <div style="color:#607090;font-size:6px;margin-top:14px;letter-spacing:2px;" class="blink">PRESS START TO BEGIN</div>
+  </div>
 
-    <!-- CENTER: Canvas -->
-    <div id="canvas-area">
-      <div id="hud">
-        <span>SCENARIO: <span id="hud-scenario">---</span></span>
-        <span>SCORE: <span id="hud-score">0</span></span>
-      </div>
-      <canvas id="gameCanvas" width="620" height="340"></canvas>
-      <div class="panel-box" id="info-box">
-        <div id="info-title">INSTRUCTIONS</div>
-        <div id="info-text">Select a fall protection method from the menu, then press RUN to simulate the scenario. Learn how each method affects worker safety!</div>
-      </div>
+  <!-- HOW TO PLAY -->
+  <div id="howScreen" class="screen">
+    <div class="how-title">HOW TO PLAY</div>
+    <div class="how-body">
+      Step 1: Read the portable grinder's operating speed (RPM).<br><br>
+      Step 2: Select a grinding disc from three options.<br><br>
+      Step 3: Move your mouse to the glowing area on the pipe.<br><br>
+      Step 4: Hold your cursor there and watch what happens.
     </div>
+    <div class="how-rule">
+      ⚠ SAFETY KNOWLEDGE IS THE OBJECTIVE ⚠<br><br>
+      Your disc choice determines what happens<br>
+      during the actual grinding operation.
+    </div>
+    <button class="pxbtn" onclick="showScreen('titleScreen')">◀ BACK</button>
+  </div>
 
-    <!-- RIGHT PANEL: Pyramid + Info -->
-    <div id="right-panel">
-      <div class="panel-box">
-        <div class="panel-title">Hierarchy Pyramid</div>
-        <canvas id="pyramid-canvas" width="155" height="175"></canvas>
-      </div>
-      <div class="panel-box" id="effectiveness-box">
-        <div class="panel-title">Effectiveness</div>
-        <div id="effectiveness-text" style="font-size:13px;color:#aaa;line-height:1.5;">
-          Hierarchy ranks controls from most effective (elimination) to least effective (admin controls).
+  <!-- DISC SELECTION -->
+  <div id="discScreen" class="screen">
+    <div class="level-header">
+      <span>LEVEL 1: DISC SELECTION</span><span>⚙ SAFETY AWARENESS</span>
+    </div>
+    <div style="display:flex;gap:20px;align-items:flex-start;padding:8px 10px 0;width:100%;">
+      <canvas id="discGrinder" width="160" height="150" style="display:block;flex-shrink:0;margin-top:4px;"></canvas>
+      <div style="flex:1;">
+        <div class="grinder-info-panel">
+          <h3>GRINDER INFORMATION</h3>
+          <div class="rpm-big">12,800</div>
+          <div class="rpm-label">OPERATING SPEED (RPM)</div>
         </div>
+        <div class="disc-question">Select a grinding disc before starting work.</div>
+      </div>
+    </div>
+    <div class="disc-cards-row" style="margin-top:4px;">
+      <div class="disc-card" onclick="selectDisc('A',5100)">
+        <div style="font-size:9px;">DISC A</div>
+        <canvas id="discA" width="80" height="80" style="display:block;"></canvas>
+        <div class="max-rpm">MAX RPM</div>
+        <div class="rpm-val">5,100</div>
+      </div>
+      <div class="disc-card" onclick="selectDisc('B',9300)">
+        <div style="font-size:9px;">DISC B</div>
+        <canvas id="discB" width="80" height="80" style="display:block;"></canvas>
+        <div class="max-rpm">MAX RPM</div>
+        <div class="rpm-val">9,300</div>
+      </div>
+      <div class="disc-card" onclick="selectDisc('C',14100)">
+        <div style="font-size:9px;">DISC C</div>
+        <canvas id="discC" width="80" height="80" style="display:block;"></canvas>
+        <div class="max-rpm">MAX RPM</div>
+        <div class="rpm-val">14,100</div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Result Popup -->
-<div id="overlay"></div>
-<div id="result-popup">
-  <h2 id="result-title">SCENARIO COMPLETE</h2>
-  <div id="result-msg"></div>
-  <div id="result-score"></div>
-  <div id="result-explain"></div>
-  <button id="result-close" onclick="closeResult()">CONTINUE</button>
-</div>
+  <!-- GRINDING OPERATION -->
+  <div id="grindScreen" class="screen">
+    <canvas id="grindCanvas" width="800" height="560"></canvas>
+  </div>
 
+  <!-- FAIL -->
+  <div id="failScreen" class="screen">
+    <canvas class="firework-canvas" id="failCanvas" width="800" height="560"></canvas>
+    <div class="result-header">⚠ INCIDENT OCCURRED ⚠</div>
+    <div class="result-body">
+      <div class="data-row"><span class="data-row-label">GRINDER SPEED:</span><span class="data-row-value">12,800 RPM</span></div>
+      <div class="data-row"><span class="data-row-label">SELECTED DISC RATING:</span><span class="data-row-value" id="fail-disc-rpm">— RPM</span></div>
+      <div class="cause-box">
+        <span style="color:#ff8080;">CAUSE:</span><br><br>
+        The grinding disc was rated below the grinder operating speed.<br>
+        The grinder operated faster than the disc's maximum allowable RPM.<br><br>
+        This caused wheel failure during operation.<br><br>
+        Grinding wheels used above their rated RPM can shatter<br>
+        violently and cause serious injury or death.
+      </div>
+      <div class="safety-rule-box">⚠ SAFETY RULE ⚠<br><br>Disc Maximum RPM must always be<br>EQUAL TO OR GREATER THAN Grinder RPM.</div>
+      <div class="result-btns">
+        <button class="pxbtn red" onclick="retryGame()">↺ RETRY</button>
+        <button class="pxbtn gray" onclick="showScreen('titleScreen')">⌂ MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="successScreen" class="screen">
+    <canvas class="firework-canvas" id="successCanvas" width="800" height="560"></canvas>
+    <div class="result-header">✓ TASK COMPLETED SAFELY</div>
+    <div class="result-body">
+      <div class="data-row"><span class="data-row-label">GRINDER SPEED:</span><span class="data-row-value">12,800 RPM</span></div>
+      <div class="data-row"><span class="data-row-label">SELECTED DISC RATING:</span><span class="data-row-value">14,100 RPM</span></div>
+      <div class="cause-box">
+        <span style="color:#80ff80;">RESULT:</span><br><br>
+        The grinding disc rating exceeded the grinder operating speed.<br><br>
+        The grinding operation was completed safely.<br><br>
+        Correct disc selection prevents wheel failure and<br>
+        protects the operator from serious injury.
+      </div>
+      <div class="safety-rule-box">✓ SAFETY RULE ✓<br><br>Disc Maximum RPM must always be<br>EQUAL TO OR GREATER THAN Grinder RPM.</div>
+      <div class="result-btns">
+        <button class="pxbtn green" onclick="retryGame()">▶ PLAY AGAIN</button>
+        <button class="pxbtn gray" onclick="showScreen('titleScreen')">⌂ MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+</div>
 <script>
-// =============================================
-// GAME STATE
-// =============================================
-const SCENARIOS = {
-  none:        { name:"No Protection",      score:0,   color:"#ff2222", rank:0 },
-  elimination: { name:"Elimination",         score:100, color:"#00ff44", rank:1 },
-  guardrail:   { name:"Guardrail",           score:85,  color:"#44ff44", rank:2 },
-  restraint:   { name:"Fall Restraint",      score:80,  color:"#88ff00", rank:3 },
-  arrest:      { name:"Fall Arrest",         score:60,  color:"#ffcc00", rank:4 },
-  warning:     { name:"Warning Line",        score:35,  color:"#ff8800", rank:5 },
-  admin:       { name:"Admin Controls",      score:20,  color:"#ff4400", rank:6 },
-};
+// ── PIXEL ART HELPERS ──────────────────────────────────────────────
+function r(ctx,x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
 
-const SCENARIO_KEYS = ['none','elimination','guardrail','restraint','arrest','warning','admin'];
-
-let state = {
-  selected: null,
-  running: false,
-  frame: 0,
-  totalScore: 0,
-  completed: new Set(),
-  animTime: 0,
-  phase: 'idle',
-  particles: [],
-};
-
-// =============================================
-// CANVAS SETUP
-// =============================================
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-ctx.imageSmoothingEnabled = false;
-
-const pyrCanvas = document.getElementById('pyramid-canvas');
-const pyrCtx = pyrCanvas.getContext('2d');
-
-// =============================================
-// DRAW HELPERS
-// =============================================
-function px(x, y, w, h, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(Math.round(x), Math.round(y), w, h);
+function drawGrinder(ctx, ox, oy, sc){
+  function b(x,y,w,h,c){ r(ctx, ox+x*sc, oy+y*sc, w*sc, h*sc, c); }
+  b(10,20,55,28,'#607080'); b(11,21,53,26,'#708898'); b(12,22,51,5,'#8099aa');
+  b(3,24,12,22,'#506070'); b(4,25,10,20,'#607888'); b(4,25,10,4,'#7090a0');
+  b(60,26,28,16,'#303844'); b(61,27,26,14,'#404f5e'); b(61,27,26,4,'#506070');
+  for(let i=0;i<6;i++) b(62+i*4,30,2,8,'rgba(0,0,0,0.2)');
+  b(18,44,26,12,'#445566'); b(19,45,24,10,'#556677'); b(18,56,26,4,'#334455');
+  b(15,56,32,4,'#c8a830'); b(15,56,32,2,'#e0c050'); b(16,58,30,2,'#a08820');
+  for(let i=0;i<8;i++) b(15+i*4,56,2,4,i%2===0?'#d4b040':'#b89030');
+  b(85,30,12,4,'#1a1a1a'); b(85,30,12,2,'#333'); b(88,34,3,14,'#1a1a1a');
+  for(let i=0;i<5;i++) b(24+i*6,24,3,14,'rgba(0,0,0,0.25)');
+  b(22,45,4,4,'#889'); b(23,46,2,2,'#aab');
 }
 
-function text(str, x, y, color, size=12, font='VT323') {
-  ctx.save();
-  ctx.fillStyle = color;
-  ctx.font = `${size}px '${font}'`;
-  ctx.fillText(str, x, y);
-  ctx.restore();
+function drawDisc(canvasId, c1, c2, dotColor){
+  const canvas=document.getElementById(canvasId);
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,80,80);
+  const cx=40,cy=40;
+  for(let i=0;i<16;i++){
+    ctx.fillStyle=i%2===0?c1:c2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,34,(i/16)*Math.PI*2,((i+1)/16)*Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle='#c0b890'; ctx.beginPath(); ctx.arc(cx,cy,20,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#d8cc98'; ctx.beginPath(); ctx.arc(cx,cy,17,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#888890'; ctx.beginPath(); ctx.arc(cx,cy,9,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#aaaacc'; ctx.beginPath(); ctx.arc(cx,cy,7,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#333';    ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=dotColor;  ctx.fillRect(cx-3,cy-12,6,4);
 }
 
-// =============================================
-// SCENE DRAWING
-// =============================================
-function drawBackground() {
-  // Sky gradient
-  const sky = ctx.createLinearGradient(0,0,0,220);
-  sky.addColorStop(0, '#0a0a2e');
-  sky.addColorStop(1, '#1a2a5e');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, 620, 220);
+// ── SCREEN MANAGEMENT ─────────────────────────────────────────────
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function startGame(){ resetGrind(); showScreen('discScreen'); }
+function showHow(){ showScreen('howScreen'); }
+function retryGame(){ resetGrind(); showScreen('discScreen'); }
 
-  // Stars
-  ctx.fillStyle = '#ffffff';
-  const stars = [[30,20],[80,10],[150,35],[200,15],[300,8],[400,25],[500,12],[560,30],[600,18],[100,45],[250,50],[450,40]];
-  stars.forEach(([sx,sy]) => ctx.fillRect(sx,sy,2,2));
-
-  // Ground
-  ctx.fillStyle = '#2a1a0a';
-  ctx.fillRect(0, 300, 620, 40);
-  ctx.fillStyle = '#3a2a1a';
-  ctx.fillRect(0, 298, 620, 4);
-
-  // Building back
-  ctx.fillStyle = '#1a2a3a';
-  ctx.fillRect(20, 60, 120, 240);
-  ctx.fillStyle = '#2a3a4a';
-  for(let wy=80; wy<280; wy+=40) for(let wx=30; wx<130; wx+=35) {
-    ctx.fillRect(wx, wy, 20, 25);
-    ctx.fillStyle = '#3a5a8a55';
-    ctx.fillRect(wx+1, wy+1, 18, 23);
-    ctx.fillStyle = '#2a3a4a';
-  }
-
-  // Platform support columns
-  ctx.fillStyle = '#4a3a2a';
-  ctx.fillRect(180, 160, 18, 140);
-  ctx.fillRect(490, 160, 18, 140);
-
-  // Platform floor
-  ctx.fillStyle = '#5a4a3a';
-  ctx.fillRect(170, 155, 340, 18);
-  // Platform planks detail
-  ctx.fillStyle = '#6a5a4a';
-  for(let px2=175; px2<505; px2+=20) ctx.fillRect(px2, 155, 2, 18);
-  // Platform edge highlights
-  ctx.fillStyle = '#7a6a5a';
-  ctx.fillRect(170, 155, 340, 3);
-
-  // Lamp post
-  ctx.fillStyle = '#8a7a6a';
-  ctx.fillRect(430, 60, 8, 95);
-  // Lamp arm
-  ctx.fillStyle = '#7a6a5a';
-  ctx.fillRect(415, 60, 23, 6);
-  // Lamp head
-  ctx.fillStyle = '#ffff00';
-  ctx.fillRect(410, 48, 30, 16);
-  ctx.fillStyle = '#ffcc0088';
-  ctx.fillRect(408, 46, 34, 20);
-  // Lamp glow
-  ctx.save();
-  const glow = ctx.createRadialGradient(425, 56, 2, 425, 56, 45);
-  glow.addColorStop(0, '#ffff0044');
-  glow.addColorStop(1, '#ffff0000');
-  ctx.fillStyle = glow;
-  ctx.fillRect(380, 20, 90, 90);
-  ctx.restore();
-
-  // Ladder
-  ctx.fillStyle = '#8a7a6a';
-  ctx.fillRect(205, 173, 5, 127);
-  ctx.fillRect(225, 173, 5, 127);
-  for(let ly=185; ly<300; ly+=18) { ctx.fillStyle = '#6a5a4a'; ctx.fillRect(205, ly, 25, 4); }
-
-  // Ground details
-  ctx.fillStyle = '#3a2a0a';
-  for(let gx=0; gx<620; gx+=60) ctx.fillRect(gx, 300, 40, 4);
+// ── DISC SELECTION ────────────────────────────────────────────────
+let selectedDisc=null, selectedRPM=0;
+function selectDisc(letter,rpm){
+  selectedDisc=letter; selectedRPM=rpm;
+  document.getElementById('fail-disc-rpm').textContent=rpm.toLocaleString()+' RPM';
+  showScreen('grindScreen');
+  startGrindScene();
 }
 
-function drawGuardrails(show) {
-  if(!show) return;
-  // Left guardrail post
-  ctx.fillStyle = '#ff8800';
-  ctx.fillRect(170, 120, 8, 38);
-  // Right guardrail post
-  ctx.fillRect(500, 120, 8, 38);
-  // Mid posts
-  ctx.fillRect(285, 120, 8, 38);
-  ctx.fillRect(400, 120, 8, 38);
-  // Top rail
-  ctx.fillStyle = '#ffaa00';
-  ctx.fillRect(170, 120, 338, 6);
-  // Mid rail
-  ctx.fillStyle = '#ff8800';
-  ctx.fillRect(170, 138, 338, 5);
-  // Labels
-  ctx.fillStyle = '#ffcc44';
-  ctx.font = "11px 'VT323'";
-  ctx.fillText("GUARDRAIL", 280, 115);
+// ── GRIND STATE ───────────────────────────────────────────────────
+let grindProgress=0, grindActive=false, grindAnimId=null;
+let mouseX=400, mouseY=300, onTarget=false;
+let grindPhase='normal'; // normal | warning | fail | success | done
+let sparks=[], fragments=[], wobbleAmt=0, screenFlash=0;
+let failTriggered=false, successTriggered=false;
+
+const TARGET={x:290,y:300,w:140,h:50};
+
+function resetGrind(){
+  grindProgress=0; grindActive=false; onTarget=false;
+  grindPhase='normal'; sparks=[]; fragments=[];
+  wobbleAmt=0; screenFlash=0;
+  failTriggered=false; successTriggered=false;
+  mouseX=400; mouseY=300;
+  if(grindAnimId){ cancelAnimationFrame(grindAnimId); grindAnimId=null; }
 }
 
-function drawWarningLine(show) {
-  if(!show) return;
-  // Warning flags
-  const flagX = 460;
-  ctx.fillStyle = '#ffff00';
-  ctx.fillRect(flagX-130, 138, 260, 4);
-  // Dashes
-  ctx.setLineDash([8,6]);
-  ctx.strokeStyle = '#ff0';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(flagX-130, 140);
-  ctx.lineTo(flagX+130, 140);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  // Flag markers
-  for(let fx=flagX-130; fx<=flagX+130; fx+=26) {
-    ctx.fillStyle = fx%52===0?'#ff0':'#ff8800';
-    ctx.fillRect(fx-2, 132, 4, 12);
-  }
-  ctx.fillStyle = '#ffff44';
-  ctx.font = "11px 'VT323'";
-  ctx.fillText("⚠ WARNING LINE ⚠", 335, 130);
-}
-
-// =============================================
-// WORKER DRAWING
-// =============================================
-function drawWorker(wx, wy, anim, harness=false, rope=null, poleAngle=0) {
-  // anim: 'stand','walk1','walk2','fall','hang','pole','climb','read'
-  const t = state.animTime;
-  let legL=0, legR=0, armL=0, armR=0;
-
-  if(anim==='walk1'||anim==='walk2') {
-    const swing = Math.sin(t*0.2)*12;
-    legL = anim==='walk1'? swing : -swing;
-    legR = -legL;
-    armL = -legL*0.5;
-    armR = -armR*0.5;
-  }
-
-  // Rope / harness line
-  if(rope) {
-    ctx.save();
-    ctx.strokeStyle = rope.color||'#cc0';
-    ctx.lineWidth = rope.width||2;
-    ctx.setLineDash(rope.dash||[]);
-    ctx.beginPath();
-    ctx.moveTo(wx+8, wy+10);
-    ctx.lineTo(rope.tx, rope.ty);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
-  }
-
-  // Shadow
-  ctx.fillStyle = '#00000044';
-  ctx.beginPath();
-  ctx.ellipse(wx+8, wy+52, 12, 4, 0, 0, Math.PI*2);
-  ctx.fill();
-
-  if(anim==='fall') {
-    // Falling pose - rotated
-    ctx.save();
-    ctx.translate(wx+8, wy+20);
-    ctx.rotate(0.8);
-    drawWorkerBody(0, 0, false, 20, -25);
-    ctx.restore();
-    return;
-  }
-
-  if(anim==='hang') {
-    // Hanging from harness
-    ctx.save();
-    ctx.translate(wx+8, wy+5);
-    drawWorkerBody(0, 0, harness, 0, 0, true);
-    ctx.restore();
-    return;
-  }
-
-  if(anim==='pole') {
-    // Using extension pole
-    ctx.save();
-    ctx.translate(wx+8, wy);
-    // Draw pole
-    ctx.fillStyle = '#aa8844';
-    ctx.save();
-    ctx.rotate(-0.5);
-    ctx.fillRect(-3, -60, 6, 70);
-    ctx.restore();
-    drawWorkerBody(0, 30, false, -30, -25);
-    ctx.restore();
-    return;
-  }
-
-  if(anim==='read') {
-    // Reading clipboard
-    ctx.save();
-    ctx.translate(wx+8, wy);
-    // clipboard
-    ctx.fillStyle = '#cc9944';
-    ctx.fillRect(8, 16, 18, 22);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(10, 18, 14, 18);
-    ctx.fillStyle = '#333';
-    for(let li=0;li<3;li++) ctx.fillRect(11,20+li*5,10,2);
-    drawWorkerBody(0, 30, false, 20, 0);
-    ctx.restore();
-    return;
-  }
-
-  if(anim==='climb') {
-    ctx.save();
-    ctx.translate(wx+8, wy);
-    const climbSwing = Math.sin(t*0.15)*15;
-    drawWorkerBody(0, 30, harness, climbSwing, -climbSwing);
-    ctx.restore();
-    return;
-  }
-
-  // Normal stand/walk
-  ctx.save();
-  ctx.translate(wx+8, wy);
-  drawWorkerBody(0, 30, harness, legL, legR);
-  ctx.restore();
-}
-
-function drawWorkerBody(bx, by, harness, legL, legR, hanging=false) {
-  // Boots
-  ctx.fillStyle = '#3a2a1a';
-  ctx.fillRect(bx-10+Math.sin(legL*Math.PI/180)*8, by+28, 8, 6);
-  ctx.fillRect(bx+2+Math.sin(legR*Math.PI/180)*8, by+28, 8, 6);
-
-  // Legs
-  ctx.fillStyle = '#2244aa';
-  ctx.fillRect(bx-8+Math.sin(legL*Math.PI/180)*6, by+14, 7, 16);
-  ctx.fillRect(bx+1+Math.sin(legR*Math.PI/180)*6, by+14, 7, 16);
-
-  // Torso / vest
-  ctx.fillStyle = '#dd6600';
-  ctx.fillRect(bx-8, by, 16, 16);
-  // Vest stripes
-  ctx.fillStyle = '#ffdd00';
-  ctx.fillRect(bx-8, by+4, 16, 3);
-  ctx.fillRect(bx-8, by+10, 16, 3);
-
-  // Harness straps
-  if(harness) {
-    ctx.fillStyle = '#cc0000';
-    ctx.fillRect(bx-7, by+1, 3, 14);
-    ctx.fillRect(bx+4, by+1, 3, 14);
-    ctx.fillRect(bx-4, by+6, 8, 3);
-  }
-
-  // Arms
-  ctx.fillStyle = '#cc7744';
-  ctx.fillRect(bx-14, by+2, 6, 10);
-  ctx.fillRect(bx+8, by+2, 6, 10);
-
-  // Neck
-  ctx.fillStyle = '#cc9966';
-  ctx.fillRect(bx-3, by-5, 6, 7);
-
-  // Head
-  ctx.fillStyle = '#cc9966';
-  ctx.fillRect(bx-7, by-16, 14, 14);
-
-  // Hard hat
-  ctx.fillStyle = '#ffdd00';
-  ctx.fillRect(bx-9, by-19, 18, 6);
-  ctx.fillRect(bx-7, by-22, 14, 5);
-
-  // Eyes
-  ctx.fillStyle = '#222';
-  ctx.fillRect(bx-4, by-13, 3, 3);
-  ctx.fillRect(bx+1, by-13, 3, 3);
-
-  // Smile if hanging safely
-  if(hanging) {
-    ctx.fillStyle = '#333';
-    ctx.fillRect(bx-3, by-8, 6, 2);
-  }
-}
-
-// =============================================
-// PARTICLE SYSTEM
-// =============================================
-function addParticles(x, y, color, count=8, speedMult=1) {
-  for(let i=0; i<count; i++) {
-    state.particles.push({
-      x, y,
-      vx: (Math.random()-0.5)*4*speedMult,
-      vy: (Math.random()-2)*3*speedMult,
-      life: 1, decay: 0.03+Math.random()*0.02,
-      color, size: 3+Math.random()*4
-    });
-  }
-}
-
-function updateParticles() {
-  state.particles = state.particles.filter(p => {
-    p.x += p.vx; p.y += p.vy; p.vy += 0.15;
-    p.life -= p.decay;
-    if(p.life > 0) {
-      ctx.save();
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x, p.y, p.size, p.size);
-      ctx.restore();
-      return true;
-    }
-    return false;
-  });
-}
-
-// =============================================
-// SCENARIO ANIMATIONS
-// =============================================
-let animHandle = null;
-let scenarioData = {};
-
-function runScenario() {
-  if(!state.selected || state.running) return;
-  if(animHandle) cancelAnimationFrame(animHandle);
-  state.running = true;
-  state.phase = 'start';
-  state.animTime = 0;
-  state.particles = [];
-  scenarioData = {};
-
-  const sc = state.selected;
-  document.getElementById('hud-scenario').textContent = SCENARIOS[sc].name.toUpperCase();
-
-  // Update buttons
-  document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active-run'));
-  document.querySelector(`[data-scenario="${sc}"]`)?.classList.add('active-run');
-
-  updateInfoBox(sc);
-
-  function loop() {
-    state.animTime++;
-    drawFrame(sc);
-    if(state.running) animHandle = requestAnimationFrame(loop);
-  }
+// ── GRIND SCENE ───────────────────────────────────────────────────
+function startGrindScene(){
+  const gc=document.getElementById('grindCanvas');
+  // Always re-attach listener cleanly
+  gc.onmousemove=null;
+  gc.onmousemove=function(e){
+    const rect=gc.getBoundingClientRect();
+    const scaleX=800/rect.width;
+    const scaleY=560/rect.height;
+    mouseX=(e.clientX-rect.left)*scaleX;
+    mouseY=(e.clientY-rect.top)*scaleY;
+  };
+  if(grindAnimId) cancelAnimationFrame(grindAnimId);
+  grindAnimId=null;
   loop();
 }
 
-// =============================================
-// MAIN DRAW FRAME PER SCENARIO
-// =============================================
-function drawFrame(sc) {
-  ctx.clearRect(0,0,620,340);
-  drawBackground();
-
-  const t = state.animTime;
-
-  switch(sc) {
-    case 'none':       drawNone(t); break;
-    case 'elimination': drawElimination(t); break;
-    case 'guardrail':  drawGuardrailScenario(t); break;
-    case 'restraint':  drawRestraint(t); break;
-    case 'arrest':     drawArrest(t); break;
-    case 'warning':    drawWarning(t); break;
-    case 'admin':      drawAdmin(t); break;
-  }
-
-  updateParticles();
-  drawHazardZone(sc);
+function loop(){
+  if(!document.getElementById('grindScreen').classList.contains('active')) return;
+  drawFrame();
+  grindAnimId=requestAnimationFrame(loop);
 }
 
-function drawHazardZone(sc) {
-  if(sc==='none') {
-    // Red flash at edge
-    ctx.save();
-    ctx.globalAlpha = 0.2+Math.sin(state.animTime*0.1)*0.1;
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(490, 120, 30, 45);
-    ctx.restore();
-  }
-}
+function drawFrame(){
+  const gc=document.getElementById('grindCanvas');
+  const ctx=gc.getContext('2d');
+  const W=800,H=560;
 
-// --- NO PROTECTION ---
-function drawNone(t) {
-  // Phase: climb (0-60), walk (60-120), fall (120-180), done (180+)
-  if(t < 60) {
-    // Worker climbing
-    const prog = t/60;
-    const wy = 300 - prog*140;
-    const wx = 215;
-    if(t > 10) {
-      const climbWx = 215;
-      drawWorker(climbWx, Math.max(wy, 160), 'climb');
+  // --- BG ---
+  ctx.fillStyle='#5a6a7a'; ctx.fillRect(0,0,W,H);
+  // wall bricks
+  ctx.fillStyle='#6a7a8a'; ctx.fillRect(0,0,W,370);
+  for(let row=0;row<15;row++){
+    for(let col=0;col<17;col++){
+      const bx=(row%2===0?0:24)+col*48;
+      ctx.fillStyle='rgba(0,0,0,0.07)';
+      ctx.fillRect(bx,row*24,46,22);
     }
-    drawText2("Climbing to platform...", 220, 100, '#ffcc00');
-  } else if(t < 130) {
-    // Walk toward edge
-    const prog = (t-60)/70;
-    const wx = 230 + prog*250;
-    const anim = Math.floor(t/8)%2===0?'walk1':'walk2';
-    drawWorker(wx, 110, anim);
-    drawText2("Walking toward edge...", 220, 100, '#ff8800');
-  } else if(t < 200) {
-    // Fall
-    const prog = (t-130)/70;
-    const wx = 480;
-    const wy = 110 + prog*prog*180;
-    drawWorker(wx, wy, 'fall');
-    addParticles(wx+8, wy+30, '#ff4400', 1, 0.5);
-    drawText2("FALLING!", 250, 100, '#ff0000');
-    // Flash danger
-    ctx.save();
-    ctx.globalAlpha = 0.3+Math.sin(t*0.3)*0.2;
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(0,0,620,340);
-    ctx.restore();
-  } else {
-    // Final - worker on ground
-    drawWorker(478, 256, 'fall');
-    addParticles(490, 290, '#ff4400', 1, 0.2);
-    drawText2("⚠ ACCIDENT OCCURRED ⚠", 170, 100, '#ff2222');
-    drawText2("No protection provided!", 200, 120, '#ffcc00');
-    if(t===201) finishScenario('none', "No protection provided. Fall hazard resulted in an accident.",
-      "This is unacceptable. No fall protection means workers are fully exposed to fall hazards. OSHA regulations require fall protection at heights of 4 ft (general industry) or 6 ft (construction).");
   }
+  // floor
+  ctx.fillStyle='#4a5a6a'; ctx.fillRect(0,370,W,H-370);
+  ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ ctx.beginPath();ctx.moveTo(x,370);ctx.lineTo(x,H);ctx.stroke(); }
+  for(let y=370;y<H;y+=40){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+
+  // workbench
+  ctx.fillStyle='#8a7060'; ctx.fillRect(60,340,680,32);
+  ctx.fillStyle='#9a8070'; ctx.fillRect(60,340,680,10);
+  ctx.fillStyle='#6a5040'; ctx.fillRect(60,372,680,6);
+  ctx.fillStyle='#6a5040'; ctx.fillRect(80,378,18,80); ctx.fillRect(700,378,18,80);
+
+  // safety poster
+  ctx.fillStyle='#f0e8d0'; ctx.fillRect(60,60,80,60);
+  ctx.fillStyle='#f4a020'; ctx.fillRect(60,60,80,14);
+  ctx.fillStyle='#000'; ctx.font='5px monospace'; ctx.textAlign='center';
+  ctx.fillText('SAFETY FIRST',100,71);
+  ctx.fillStyle='#d02020'; ctx.fillRect(88,80,24,24);
+  ctx.fillStyle='#fff'; ctx.font='bold 16px monospace'; ctx.fillText('!',100,98);
+  ctx.fillStyle='#555'; ctx.font='4px monospace'; ctx.fillText('CHECK DISC RPM',100,114);
+
+  // --- PIPE ---
+  const py=288, ph=58, px=130, pw=540;
+  ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(px+5,py+6,pw,ph);
+  const grd=ctx.createLinearGradient(0,py,0,py+ph);
+  grd.addColorStop(0,'#b8c8d0'); grd.addColorStop(0.18,'#d8e8f0');
+  grd.addColorStop(0.6,'#8898a8'); grd.addColorStop(1,'#506070');
+  ctx.fillStyle=grd; ctx.fillRect(px,py,pw,ph);
+  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.fillRect(px,py+4,pw,8);
+  ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=2;
+  for(let x2=px+80;x2<px+pw;x2+=80){ ctx.beginPath();ctx.moveTo(x2,py);ctx.lineTo(x2,py+ph);ctx.stroke(); }
+  ctx.fillStyle='#607888'; ctx.fillRect(px,py,10,ph); ctx.fillRect(px+pw-10,py,10,ph);
+  ctx.fillStyle='#8099aa'; ctx.fillRect(px,py,10,8); ctx.fillRect(px+pw-10,py,10,8);
+
+  // --- TARGET ZONE ---
+  if(grindPhase==='normal'||grindPhase==='warning'){
+    const pulse=Math.sin(Date.now()/220)*0.4+0.6;
+    ctx.fillStyle=`rgba(255,255,0,${pulse*0.3})`; ctx.fillRect(TARGET.x,TARGET.y,TARGET.w,TARGET.h);
+    ctx.strokeStyle=`rgba(255,220,0,${pulse})`; ctx.lineWidth=2;
+    ctx.strokeRect(TARGET.x,TARGET.y,TARGET.w,TARGET.h);
+    if(!grindActive){
+      ctx.fillStyle=`rgba(255,220,0,${pulse})`;
+      ctx.font='18px monospace'; ctx.textAlign='center';
+      ctx.fillText('▼',TARGET.x+TARGET.w/2,TARGET.y-6);
+      ctx.font='7px "Press Start 2P"';
+      ctx.fillText('MOVE GRINDER HERE',TARGET.x+TARGET.w/2,TARGET.y-18);
+    }
+  }
+
+  // --- SPARKS ---
+  sparks=sparks.filter(s=>s.life>0);
+  for(const s of sparks){
+    s.x+=s.vx; s.y+=s.vy; s.vy+=0.3; s.vx*=0.99; s.life-=0.045;
+    ctx.globalAlpha=Math.max(0,s.life);
+    ctx.fillStyle=s.color; ctx.fillRect(s.x,s.y,s.size,s.size);
+  }
+  ctx.globalAlpha=1;
+
+  // --- FRAGMENTS ---
+  fragments=fragments.filter(f=>f.life>0);
+  for(const f of fragments){
+    f.x+=f.vx; f.y+=f.vy; f.vy+=0.4; f.vx*=0.98;
+    f.rot+=f.rotSpeed; f.life-=0.014;
+    ctx.save(); ctx.globalAlpha=Math.max(0,Math.min(f.life,1));
+    ctx.translate(f.x,f.y); ctx.rotate(f.rot);
+    ctx.fillStyle=f.color; ctx.fillRect(-f.w/2,-f.h/2,f.w,f.h);
+    ctx.restore(); ctx.globalAlpha=1;
+  }
+
+  // --- GRINDER (follows mouse) ---
+  if(grindPhase!=='fail'&&grindPhase!=='done'){
+    const wx=wobbleAmt*(Math.random()-0.5)*2;
+    const wy=wobbleAmt*(Math.random()-0.5)*2;
+    drawGrinderAtMouse(ctx, mouseX+wx, mouseY+wy);
+  }
+
+  // --- HUD ---
+  ctx.fillStyle='rgba(0,0,0,0.78)';
+  ctx.fillRect(200,10,400,44);
+  ctx.strokeStyle='#f0c040'; ctx.lineWidth=2;
+  ctx.strokeRect(200,10,400,44);
+  ctx.fillStyle='#f0c040'; ctx.font='8px "Press Start 2P"'; ctx.textAlign='center';
+  ctx.fillText('GRINDER: 12,800 RPM  |  DISC: '+selectedRPM.toLocaleString()+' RPM',400,31);
+  ctx.fillStyle='#c8d8e8'; ctx.font='7px "Press Start 2P"';
+  if(grindPhase==='warning'){
+    ctx.fillStyle='#ff8800';
+    ctx.fillText('⚠ WARNING: DISC VIBRATION DETECTED ⚠',400,46);
+  } else if(!grindActive){
+    ctx.fillText('Move the grinder onto the glowing target area',400,46);
+  } else {
+    ctx.fillText('Grinding in progress...',400,46);
+  }
+
+  // --- PROGRESS BAR ---
+  if(grindProgress>0&&grindPhase!=='done'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(190,515,420,30);
+    ctx.strokeStyle='#888'; ctx.lineWidth=1; ctx.strokeRect(190,515,420,30);
+    ctx.fillStyle='#eee'; ctx.font='6px "Press Start 2P"'; ctx.textAlign='left';
+    ctx.fillText('PROGRESS',196,529);
+    ctx.fillStyle='#333'; ctx.fillRect(280,520,300,16);
+    let barColor='#28a028';
+    if(grindPhase==='warning') barColor='#f0a000';
+    ctx.fillStyle=barColor; ctx.fillRect(280,520,grindProgress*300,16);
+    ctx.strokeStyle='#666'; ctx.lineWidth=1; ctx.strokeRect(280,520,300,16);
+    ctx.fillStyle='#fff'; ctx.textAlign='center';
+    ctx.fillText(Math.floor(grindProgress*100)+'%',430,531);
+  }
+
+  // --- RED FLASH ---
+  if(screenFlash>0){
+    ctx.fillStyle=`rgba(220,0,0,${Math.min(screenFlash*0.8,0.8)})`;
+    ctx.fillRect(0,0,W,H);
+    screenFlash-=0.05;
+  }
+
+  // --- LOGIC ---
+  checkTarget();
+  if(grindActive&&grindPhase!=='fail'&&grindPhase!=='success'&&grindPhase!=='done'){
+    updateProgress();
+  }
+  if(grindPhase==='warning') wobbleAmt=Math.min(wobbleAmt+0.25,14);
 }
 
-// --- ELIMINATION ---
-function drawElimination(t) {
-  if(t < 40) {
-    drawWorker(200, 250, 'stand');
-    drawText2("Assessing the task...", 220, 230, '#00ff88');
-    drawText2("Can we eliminate the hazard?", 180, 210, '#00ff88');
-  } else if(t < 160) {
-    // Pole animation
-    drawWorker(200, 250, 'pole');
-    addParticles(426, 52, '#ffff00', 1, 0.3);
-    drawText2("Using extension pole!", 220, 230, '#00ff88');
-    drawText2("No need to climb!", 240, 210, '#ffcc00');
-    // Highlight lamp
-    ctx.save();
-    ctx.globalAlpha = 0.4+Math.sin(t*0.1)*0.3;
-    const lg = ctx.createRadialGradient(425, 56, 5, 425, 56, 60);
-    lg.addColorStop(0, '#ffff00');
-    lg.addColorStop(1, '#ffff0000');
-    ctx.fillStyle = lg;
-    ctx.fillRect(360, 10, 130, 120);
-    ctx.restore();
-  } else {
-    drawWorker(200, 250, 'stand');
-    // Celebration particles
-    if(t%3===0) addParticles(200+Math.random()*400, 200+Math.random()*80, '#00ff88', 2, 1.5);
-    drawText2("✓ TASK COMPLETE - SAFELY!", 185, 230, '#00ff44');
-    drawText2("Worker never left the ground!", 190, 210, '#00ff88');
-    if(t===161) finishScenario('elimination', "Excellent! Hazard eliminated.",
-      "Elimination removes the hazard entirely. By using an extension pole, the worker repairs the lamp without ever working at height. This is the MOST EFFECTIVE control — no fall possible if no one is elevated!");
-  }
-}
+function drawGrinderAtMouse(ctx, mx, my){
+  // Grinder drawn so disc is AT mouse tip
+  const gx=mx-20, gy=my-58;
+  ctx.save(); ctx.translate(gx, gy);
 
-// --- GUARDRAIL ---
-function drawGuardrailScenario(t) {
-  drawGuardrails(true);
-  if(t < 60) {
-    const prog = t/60;
-    drawWorker(215, Math.max(160, 300-prog*140), 'climb');
-    drawText2("Climbing to platform...", 220, 100, '#88ff00');
-  } else if(t < 130) {
-    const prog = (t-60)/70;
-    const wx = 230 + prog*250;
-    drawWorker(wx, 110, Math.floor(t/8)%2===0?'walk1':'walk2');
-    drawText2("Walking toward edge...", 220, 100, '#88ff00');
-  } else if(t < 170) {
-    // Hit guardrail
-    drawWorker(470, 110, 'stand');
-    addParticles(508, 135, '#ff8800', 2, 0.8);
-    drawText2("GUARDRAIL ENGAGED!", 200, 100, '#ff8800');
-    ctx.save();
-    ctx.globalAlpha = 0.5+Math.sin(t*0.3)*0.3;
-    ctx.fillStyle = '#ff8800';
-    ctx.fillRect(498, 118, 14, 40);
-    ctx.restore();
+  // --- spinning disc ---
+  const discCx=20, discCy=62;
+  ctx.save(); ctx.translate(discCx,discCy);
+  const spin=Date.now()/80*(grindActive?1.2:0.2);
+  ctx.rotate(spin);
+  if(grindPhase==='warning'){
+    // cracked disc
+    const w2=(Math.random()-0.5)*0.15;
+    ctx.rotate(w2);
+    for(let i=0;i<8;i++){
+      ctx.fillStyle=i%2===0?'#c8a830':'#a08820';
+      ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.arc(0,0,16,(i/8)*Math.PI*2,((i+1)/8)*Math.PI*2); ctx.fill();
+    }
+    ctx.strokeStyle='#301800'; ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(14*Math.cos(0.5),14*Math.sin(0.5));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(12*Math.cos(2.2),12*Math.sin(2.2));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(10*Math.cos(4.1),10*Math.sin(4.1));ctx.stroke();
   } else {
-    drawWorker(460, 110, 'stand');
-    addParticles(500, 150, '#88ff00', 1, 0.5);
-    drawText2("✓ Fall prevented by guardrail!", 175, 100, '#44ff44');
-    if(t===171) finishScenario('guardrail', "Good protection. Guardrail prevented the fall.",
-      "Guardrails are passive protection — they work without any action from the worker. As a collective protection measure, they protect everyone on the platform automatically.");
+    for(let i=0;i<8;i++){
+      ctx.fillStyle=i%2===0?'#c8a830':'#a08820';
+      ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.arc(0,0,16,(i/8)*Math.PI*2,((i+1)/8)*Math.PI*2); ctx.fill();
+    }
   }
-}
+  ctx.fillStyle='#888'; ctx.beginPath();ctx.arc(0,0,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#333'; ctx.beginPath();ctx.arc(0,0,3,0,Math.PI*2);ctx.fill();
+  ctx.restore();
 
-// --- RESTRAINT ---
-function drawRestraint(t) {
-  const anchorX = 310, anchorY = 130;
-  if(t < 60) {
-    drawWorker(215, Math.max(160, 300-(t/60)*140), 'climb', true);
-    drawText2("Climbing with harness...", 220, 100, '#88ff00');
-  } else if(t < 130) {
-    const prog = (t-60)/70;
-    const wx = 230 + prog * 180; // Only goes partway
-    const rope = { tx: anchorX, ty: anchorY, color:'#cc0000', width:3 };
-    drawWorker(wx, 110, Math.floor(t/8)%2===0?'walk1':'walk2', true, rope);
-    drawText2("Restraint limits movement...", 200, 100, '#88ff00');
-  } else if(t < 180) {
-    // Line goes taut
-    const wx = 410;
-    const rope = { tx: anchorX, ty: anchorY, color:'#ff0000', width:4 };
-    drawWorker(wx, 110, 'stand', true, rope);
-    ctx.save();
-    ctx.globalAlpha = 0.4+Math.sin(t*0.3)*0.3;
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(408, 108, 12, 50);
-    ctx.restore();
-    drawText2("⚡ LINE TAUT! Cannot reach edge!", 160, 100, '#ff4400');
-  } else {
-    const rope = { tx: anchorX, ty: anchorY, color:'#cc0000', width:3 };
-    drawWorker(410, 110, 'stand', true, rope);
-    drawText2("✓ Worker restrained from hazard!", 160, 100, '#44ff44');
-    if(t===181) finishScenario('restraint', "Worker restrained from reaching the hazard.",
-      "Fall restraint prevents the worker from reaching the fall hazard. Unlike fall arrest, no fall occurs at all — the restraint line physically stops the worker before they reach the unprotected edge.");
-  }
-}
+  // guard
+  ctx.fillStyle='#445566'; ctx.fillRect(6,48,28,18);
+  ctx.fillStyle='#556677'; ctx.fillRect(7,49,26,16);
 
-// --- FALL ARREST ---
-function drawArrest(t) {
-  const anchorX = 430, anchorY = 90;
-  if(t < 60) {
-    drawWorker(215, Math.max(160, 300-(t/60)*140), 'climb', true);
-    drawText2("Climbing with harness...", 220, 100, '#ffcc00');
-  } else if(t < 130) {
-    const prog = (t-60)/70;
-    drawWorker(230+prog*250, 110, Math.floor(t/8)%2===0?'walk1':'walk2', true,
-      {tx:anchorX,ty:anchorY,color:'#cc8800',width:2});
-    drawText2("Walking with fall arrest...", 200, 100, '#ffcc00');
-  } else if(t < 165) {
-    // Start falling
-    const prog = (t-130)/35;
-    const wx = 480;
-    const wy = 110 + prog*70;
-    const rope = {tx:anchorX,ty:anchorY,color:'#cc8800',width:3};
-    drawWorker(wx, wy, 'fall', true, rope);
-    addParticles(wx, wy+20, '#ffcc00', 1, 0.5);
-    drawText2("FALLING!", 250, 100, '#ff8800');
-  } else if(t < 220) {
-    // Arrested / hanging
-    const wx = 470;
-    const wy = 190;
-    const rope = {tx:anchorX,ty:anchorY,color:'#ffcc00',width:4};
-    drawWorker(wx, wy, 'hang', true, rope);
-    if(t%5===0) addParticles(wx, wy-10, '#ffcc00', 2, 0.5);
-    drawText2("ARRESTED! Hanging safely.", 190, 100, '#ffcc00');
-    ctx.save();
-    ctx.globalAlpha = 0.3+Math.sin(t*0.2)*0.2;
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillRect(anchorX-5, anchorY, 8, wy-anchorY+20);
-    ctx.restore();
-  } else {
-    const rope = {tx:anchorX,ty:anchorY,color:'#ffcc00',width:3};
-    drawWorker(470, 190, 'hang', true, rope);
-    drawText2("✓ Fall arrested. Worker safe.", 185, 100, '#ffcc00');
-    if(t===221) finishScenario('arrest', "Fall occurred, but the fall arrest system prevented serious injury.",
-      "Fall arrest STOPS a fall in progress but does NOT prevent the fall itself. The worker still falls a short distance before the lifeline arrests them. Post-arrest rescue planning is essential.");
-  }
-}
+  // body
+  ctx.fillStyle='#607080'; ctx.fillRect(0,14,72,28);
+  ctx.fillStyle='#7090a0'; ctx.fillRect(1,15,70,10);
+  for(let i=0;i<5;i++){ ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(8+i*11,16,5,18); }
 
-// --- WARNING LINE ---
-function drawWarning(t) {
-  drawWarningLine(true);
-  if(t < 60) {
-    drawWorker(215, Math.max(160, 300-(t/60)*140), 'climb');
-    drawText2("Climbing to platform...", 220, 100, '#ffaa00');
-  } else if(t < 110) {
-    const prog = (t-60)/50;
-    drawWorker(230+prog*170, 110, Math.floor(t/8)%2===0?'walk1':'walk2');
-    drawText2("Approaching warning line...", 200, 100, '#ffaa00');
-  } else if(t < 150) {
-    // At warning line - hesitates
-    drawWorker(400, 110, 'stand');
-    ctx.save();
-    ctx.globalAlpha = 0.5+Math.sin(t*0.3)*0.4;
-    ctx.fillStyle = '#ffff00';
-    ctx.fillRect(328, 136, 5, 20);
-    ctx.restore();
-    drawText2("Worker sees warning line...", 195, 100, '#ffaa00');
-    drawText2("Will they comply?", 240, 118, '#ffaa00');
-  } else if(t < 180) {
-    // Worker steps back
-    const prog = (t-150)/30;
-    drawWorker(400-prog*80, 110, Math.floor(t/8)%2===0?'walk1':'walk2');
-    drawText2("Worker steps back (compliant)", 180, 100, '#aaff00');
-  } else {
-    drawWorker(320, 110, 'stand');
-    drawText2("⚠ Depends on compliance!", 205, 100, '#ffaa00');
-    if(t===181) finishScenario('warning', "Protection depends on worker behavior.",
-      "Warning lines are only effective if workers respect them. They provide no physical barrier and rely entirely on human behavior. In practice, workers may unknowingly or intentionally cross the line, making this a lower-order control.");
-  }
-}
+  // motor cap
+  ctx.fillStyle='#506070'; ctx.fillRect(0,18,8,22);
+  ctx.fillStyle='#607888'; ctx.fillRect(1,19,6,20);
 
-// --- ADMIN CONTROLS ---
-function drawAdmin(t) {
-  if(t < 80) {
-    drawWorker(280, 250, 'read');
-    drawText2("Reviewing safety procedures...", 185, 230, '#ff8844');
-    drawText2("Reading work instructions...", 195, 210, '#ff8844');
-    // Draw clipboard/signs nearby
-    ctx.fillStyle = '#cc8844';
-    ctx.fillRect(350, 200, 50, 65);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(352, 202, 46, 61);
-    ctx.fillStyle = '#333';
-    ctx.font = "9px 'VT323'";
-    ctx.fillText("SAFETY", 360, 215);
-    ctx.fillText("PLAN", 362, 228);
-    ctx.fillText("----", 357, 240);
-    ctx.fillText("----", 357, 250);
-    ctx.fillText("----", 357, 260);
-  } else if(t < 160) {
-    const prog = (t-80)/80;
-    drawWorker(215, Math.max(160, 300-prog*140), 'climb');
-    drawText2("Proceeding cautiously...", 220, 100, '#ff8844');
-    drawText2("(Relying on training & procedures)", 160, 118, '#ff8844');
-  } else if(t < 200) {
-    drawWorker(280, 110, 'stand');
-    drawText2("Worker on platform.", 225, 100, '#ff8844');
-    drawText2("Behavior depends on training.", 185, 118, '#ffaa44');
-  } else {
-    drawWorker(280, 110, 'stand');
-    drawText2("⚠ Behavior-dependent control.", 185, 100, '#ff8844');
-    if(t===201) finishScenario('admin', "Administrative controls rely on human behavior.",
-      "Administrative controls include training, procedures, and work permits. They are the LEAST RELIABLE controls because they depend on workers consistently following procedures every time, under all conditions.");
-  }
-}
+  // handle
+  ctx.fillStyle='#303844'; ctx.fillRect(70,18,32,16);
+  ctx.fillStyle='#404f5e'; ctx.fillRect(71,19,30,14);
+  for(let i=0;i<6;i++){ ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(72+i*4,21,2,10); }
 
-function drawText2(str, x, y, color) {
-  ctx.save();
-  ctx.fillStyle = '#00000099';
-  ctx.fillRect(x-4, y-14, str.length*8+8, 18);
-  ctx.font = "15px 'VT323'";
-  ctx.fillStyle = color;
-  ctx.fillText(str, x, y);
   ctx.restore();
 }
 
-// =============================================
-// SCENARIO COMPLETION
-// =============================================
-function finishScenario(sc, msg, explain) {
-  state.running = false;
-  if(animHandle) cancelAnimationFrame(animHandle);
+function checkTarget(){
+  // disc tip is at mouseX, mouseY
+  onTarget = mouseX>=TARGET.x && mouseX<=TARGET.x+TARGET.w &&
+             mouseY>=TARGET.y && mouseY<=TARGET.y+TARGET.h;
+  if(onTarget&&!grindActive&&grindPhase==='normal'){
+    grindActive=true;
+  }
+  if(!onTarget&&grindActive&&(grindPhase==='normal'||grindPhase==='warning')){
+    grindActive=false;
+  }
+}
 
-  const data = SCENARIOS[sc];
-  const alreadyDone = state.completed.has(sc);
+function updateProgress(){
+  const isWrong=(selectedDisc==='A'||selectedDisc==='B');
+  grindProgress=Math.min(grindProgress+0.0025,1);
 
-  if(!alreadyDone) {
-    state.totalScore += data.score;
-    state.completed.add(sc);
-    document.getElementById('total-score-val').textContent = state.totalScore;
-    document.getElementById('hud-score').textContent = state.totalScore;
+  // Spawn sparks at contact point
+  if(Math.random()<0.5){
+    sparks.push({
+      x:mouseX+(Math.random()-0.5)*20,
+      y:mouseY+(Math.random()-0.5)*10,
+      vx:(Math.random()-0.5)*10,
+      vy:-Math.random()*7-2,
+      life:1,
+      color:Math.random()<0.5?'#ffcc00':'#ff8800',
+      size:Math.random()*3+1
+    });
   }
 
-  updateProgressDots();
-  drawPyramid(sc);
-
-  // Show popup after short delay
-  setTimeout(() => {
-    const popup = document.getElementById('result-popup');
-    const overlay = document.getElementById('overlay');
-    document.getElementById('result-title').textContent = data.name.toUpperCase();
-    document.getElementById('result-title').style.color = data.color;
-    document.getElementById('result-msg').textContent = msg;
-    document.getElementById('result-score').textContent =
-      alreadyDone ? `(Already scored)` : `+${data.score} POINTS`;
-    document.getElementById('result-score').style.color = data.color;
-    document.getElementById('result-explain').textContent = explain;
-    popup.style.display = 'block';
-    overlay.style.display = 'block';
-  }, 400);
-
-  // Update button state
-  document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active-run'));
-  const btn = document.querySelector(`[data-scenario="${sc}"]`);
-  if(btn) { btn.classList.remove('selected'); btn.classList.add('done'); btn.style.opacity='0.7'; }
-}
-
-function closeResult() {
-  document.getElementById('result-popup').style.display = 'none';
-  document.getElementById('overlay').style.display = 'none';
-  state.running = false;
-  // Redraw idle scene
-  drawIdleScene();
-}
-
-// =============================================
-// IDLE SCENE
-// =============================================
-function drawIdleScene() {
-  ctx.clearRect(0,0,620,340);
-  drawBackground();
-  drawWorker(230, 250, 'stand');
-  ctx.save();
-  ctx.fillStyle = '#00000088';
-  ctx.fillRect(150, 270, 280, 28);
-  ctx.font = "16px 'VT323'";
-  ctx.fillStyle = '#FFD700';
-  ctx.fillText("SELECT A METHOD AND PRESS RUN", 158, 288);
-  ctx.restore();
-}
-
-// =============================================
-// PYRAMID
-// =============================================
-const PYRAMID_LEVELS = [
-  { key:'elimination', label:'ELIMINATION',    color:'#00ff44', short:'Eliminate' },
-  { key:'guardrail',   label:'GUARDRAIL',       color:'#44dd44', short:'Guardrail' },
-  { key:'restraint',   label:'FALL RESTRAINT',  color:'#88cc00', short:'Restraint' },
-  { key:'arrest',      label:'FALL ARREST',     color:'#ffcc00', short:'Fall Arrest' },
-  { key:'warning',     label:'WARNING LINE',    color:'#ff8800', short:'Warning' },
-  { key:'admin',       label:'ADMIN CONTROLS',  color:'#ff4400', short:'Admin' },
-  { key:'none',        label:'NO PROTECTION',   color:'#ff0000', short:'NONE' },
-];
-
-function drawPyramid(highlight) {
-  const pw = pyrCanvas.width, ph = pyrCanvas.height;
-  pyrCtx.clearRect(0,0,pw,ph);
-  pyrCtx.fillStyle = '#0a0a1a';
-  pyrCtx.fillRect(0,0,pw,ph);
-
-  const levels = PYRAMID_LEVELS.length;
-  const baseW = pw - 10;
-  const topW = 20;
-  const h = (ph - 20) / levels;
-
-  for(let i=0; i<levels; i++) {
-    const lv = PYRAMID_LEVELS[i]; // top = best (index 0)
-    const y = 8 + i * h;
-    const widthFrac = topW + (baseW - topW) * (i / (levels-1));
-    const x = (pw - widthFrac) / 2;
-
-    // Highlight selected
-    const isHighlight = lv.key === highlight;
-    pyrCtx.fillStyle = lv.color + (isHighlight ? 'ff' : '55');
-    pyrCtx.fillRect(x, y, widthFrac, h-2);
-
-    if(isHighlight) {
-      pyrCtx.strokeStyle = '#fff';
-      pyrCtx.lineWidth = 2;
-      pyrCtx.strokeRect(x, y, widthFrac, h-2);
-    }
-
-    // Completed dot
-    if(state.completed.has(lv.key)) {
-      pyrCtx.fillStyle = '#fff';
-      pyrCtx.fillRect(x+3, y+h/2-3, 5, 5);
-    }
-
-    // Label
-    pyrCtx.fillStyle = isHighlight ? '#fff' : '#aaa';
-    pyrCtx.font = "9px 'VT323'";
-    pyrCtx.fillText(lv.short, x + widthFrac/2 - lv.short.length*3, y + h/2 + 3);
+  if(isWrong&&grindProgress>=0.55&&grindPhase==='normal'){
+    grindPhase='warning';
   }
-
-  // Arrow indicating "more effective" direction
-  pyrCtx.fillStyle = '#FFD700';
-  pyrCtx.font = "10px 'VT323'";
-  pyrCtx.fillText("▲ MORE EFFECTIVE", 18, ph-2);
+  if(isWrong&&grindProgress>=0.72&&grindPhase==='warning'&&!failTriggered){
+    failTriggered=true;
+    triggerFailure();
+  }
+  if(!isWrong&&grindProgress>=1&&!successTriggered){
+    successTriggered=true;
+    triggerSuccess();
+  }
 }
 
-// =============================================
-// UI UPDATES
-// =============================================
-function updateProgressDots() {
-  const container = document.getElementById('progress-dots');
-  container.innerHTML = '';
-  SCENARIO_KEYS.forEach(k => {
-    const d = document.createElement('div');
-    d.className = 'progress-dot' + (state.completed.has(k) ? ' done' : (state.selected===k?' active':''));
-    d.title = SCENARIOS[k].name;
-    container.appendChild(d);
-  });
+function triggerFailure(){
+  grindPhase='fail'; grindActive=false;
+  const colors=['#c8a830','#a08820','#e0c050','#806018','#d0c0a0'];
+  for(let i=0;i<50;i++){
+    fragments.push({
+      x:mouseX+(Math.random()-0.5)*20, y:mouseY+(Math.random()-0.5)*10,
+      vx:(Math.random()-0.5)*22, vy:-Math.random()*16-5,
+      rot:Math.random()*Math.PI*2, rotSpeed:(Math.random()-0.5)*0.5,
+      w:Math.random()*10+3, h:Math.random()*5+2,
+      life:1.4, color:colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+  for(let i=0;i<80;i++){
+    sparks.push({
+      x:mouseX+(Math.random()-0.5)*30, y:mouseY,
+      vx:(Math.random()-0.5)*22, vy:-Math.random()*18-2,
+      life:1.8, color:Math.random()<0.5?'#ff8800':'#ffcc00',
+      size:Math.random()*5+2
+    });
+  }
+  screenFlash=1;
+  let fc=0;
+  const fi=setInterval(()=>{
+    fc++; screenFlash=0.9;
+    if(fc>=6){ clearInterval(fi);
+      setTimeout(()=>{ showScreen('failScreen'); grindPhase='done'; },1200); }
+  },140);
 }
 
-function updateInfoBox(sc) {
-  const infos = {
-    none:        ["NO PROTECTION", "Baseline only. Demonstrates why fall protection is mandatory."],
-    elimination: ["ELIMINATION (BEST)", "Remove the need to work at height entirely. Most effective control possible."],
-    guardrail:   ["GUARDRAIL SYSTEM", "Passive physical barrier. Works regardless of worker behavior."],
-    restraint:   ["FALL RESTRAINT", "Prevents worker from reaching the fall hazard. No fall can occur."],
-    arrest:      ["FALL ARREST", "Stops a fall in progress. Fall occurs but injury is minimized."],
-    warning:     ["WARNING LINE", "Visual boundary only. Relies on worker compliance to be effective."],
-    admin:       ["ADMINISTRATIVE CONTROLS (WEAKEST)", "Training, procedures, permits. Relies entirely on human behavior every time."],
-  };
-  const [title, text] = infos[sc]||['',''];
-  document.getElementById('info-title').textContent = title;
-  document.getElementById('info-text').textContent = text;
-
-  const effTexts = {
-    none:        "❌ No protection. Fully exposed to fall hazard.",
-    elimination: "★★★★★ Best possible — hazard doesn't exist.",
-    guardrail:   "★★★★☆ Passive protection. Always effective.",
-    restraint:   "★★★★☆ Prevents reaching hazard. No fall occurs.",
-    arrest:      "★★★☆☆ Stops fall. Rescue plan needed after arrest.",
-    warning:     "★★☆☆☆ Behavior-dependent. Not physical protection.",
-    admin:       "★☆☆☆☆ Relies on training + compliance every time.",
-  };
-  document.getElementById('effectiveness-text').textContent = effTexts[sc]||'';
+function triggerSuccess(){
+  grindPhase='success'; grindActive=false;
+  for(let i=0;i<80;i++){
+    sparks.push({
+      x:mouseX+(Math.random()-0.5)*40, y:mouseY,
+      vx:(Math.random()-0.5)*14, vy:-Math.random()*12-2,
+      life:1.8, color:Math.random()<0.5?'#ffcc00':'#80ff80',
+      size:Math.random()*4+2
+    });
+  }
+  setTimeout(()=>{ showScreen('successScreen'); grindPhase='done'; startFireworks('successCanvas'); },1400);
 }
 
-// =============================================
-// SELECTION
-// =============================================
-function selectScenario(sc) {
-  if(state.running) return;
-  state.selected = sc;
-  document.querySelectorAll('.menu-btn').forEach(b => {
-    b.classList.remove('selected','active-run');
-  });
-  document.querySelector(`[data-scenario="${sc}"]`)?.classList.add('selected');
-  updateInfoBox(sc);
-  updateProgressDots();
-  drawPyramid(sc);
-  drawIdleScene();
+// ── FIREWORKS ─────────────────────────────────────────────────────
+function startFireworks(cid){
+  const c=document.getElementById(cid);
+  const ctx=c.getContext('2d');
+  let pts=[]; let running=true;
+  function spawn(){
+    if(!running) return;
+    const x=Math.random()*700+50, y=Math.random()*200+80;
+    const col=['#ffcc00','#80ff80','#60c0ff','#ff8080','#ff80ff'][Math.floor(Math.random()*5)];
+    for(let i=0;i<40;i++){
+      const a=(i/40)*Math.PI*2, sp=Math.random()*4+2;
+      pts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color:col,size:Math.random()*3+2});
+    }
+    setTimeout(spawn,600);
+  }
+  spawn();
+  function fw(){
+    if(!document.getElementById('successScreen').classList.contains('active')){ running=false; return; }
+    ctx.clearRect(0,0,800,560);
+    pts=pts.filter(p=>p.life>0);
+    for(const p of pts){
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.12;p.life-=0.022;
+      ctx.globalAlpha=Math.max(0,p.life);
+      ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.size,p.size);
+    }
+    ctx.globalAlpha=1;
+    requestAnimationFrame(fw);
+  }
+  fw();
 }
 
-function restartGame() {
-  if(animHandle) cancelAnimationFrame(animHandle);
-  state = { selected:null, running:false, frame:0, totalScore:0,
-    completed:new Set(), animTime:0, phase:'idle', particles:[] };
-  document.getElementById('total-score-val').textContent = '0';
-  document.getElementById('hud-score').textContent = '0';
-  document.getElementById('hud-scenario').textContent = '---';
-  document.querySelectorAll('.menu-btn').forEach(b => {
-    b.classList.remove('selected','active-run');
-    b.style.opacity = '1';
-  });
-  document.getElementById('result-popup').style.display = 'none';
-  document.getElementById('overlay').style.display = 'none';
-  document.getElementById('info-title').textContent = 'INSTRUCTIONS';
-  document.getElementById('info-text').textContent = 'Select a fall protection method from the menu, then press RUN to simulate the scenario.';
-  document.getElementById('effectiveness-text').textContent = 'Hierarchy ranks controls from most effective (elimination) to least effective (admin controls).';
-  updateProgressDots();
-  drawPyramid(null);
-  drawIdleScene();
-}
+// ── INIT ──────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  // Title grinder
+  const tg=document.getElementById('titleGrinder');
+  const tctx=tg.getContext('2d');
+  drawGrinder(tctx,10,10,2);
 
-// =============================================
-// INIT
-// =============================================
-drawIdleScene();
-drawPyramid(null);
-updateProgressDots();
+  // Disc selection grinder
+  const dg=document.getElementById('discGrinder');
+  const dctx=dg.getContext('2d');
+  drawGrinder(dctx,0,5,1.4);
+
+  // Disc art
+  drawDisc('discA','#8090a0','#607080','#ff4040');
+  drawDisc('discB','#9080a0','#706080','#ff8040');
+  drawDisc('discC','#80a060','#607040','#40ff80');
+});
 </script>
 </body>
 </html>
